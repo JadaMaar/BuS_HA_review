@@ -84,7 +84,7 @@ def generate():
                 # save suggestion
                 if comment:
                     comment_entry = child.winfo_children()[3]
-                    suggestion_map[comment_entry].append(comment)
+                    suggestion_map[comment_entry].add(comment)
                     if suggestion_on:
                         box_to_dropdown[comment_entry].configure(values=suggestion_map[comment_entry])
 
@@ -95,11 +95,11 @@ def generate():
             f.write(f"Total: {acquired_points}/{total_points}")
     except:
         print("generation failed")
-        CTkMessagebox(message="Something went wrong please try again.", title="Error", icon="warning")
+        CTkMessagebox(message="Something went wrong please try again.", title="Error", icon="cancel")
 
 
 def save_task():
-    f = filedialog.asksaveasfile(mode='w', defaultextension=".txt")
+    f = filedialog.asksaveasfile(mode='w', defaultextension=".bus")
     if f is None:  # asksaveasfile return `None` if dialog closed with "cancel".
         return
     for child in container.winfo_children():
@@ -112,6 +112,9 @@ def save_task():
 def load_task():
     file_path = filedialog.askopenfilename()
     if file_path == "":
+        return
+    if not file_path.endswith(".bus"):
+        CTkMessagebox(message="Selected file had the wrong datatype. It must be a .bus file.", title="Error", icon="cancel")
         return
     # remove all prior existing tasks and load one from file
     while container.winfo_children():
@@ -143,7 +146,7 @@ def resource_path(relative_path):
 if __name__ == '__main__':
     # remembers previously used comments for each task
     # used comments will be added everytime the "Generate" button is clicked
-    suggestion_map = defaultdict(list)
+    suggestion_map = defaultdict(set)
     box_to_dropdown = dict()
 
     app = ctk.CTk()
