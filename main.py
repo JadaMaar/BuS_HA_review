@@ -4,6 +4,8 @@ from PIL import Image
 from CTkMessagebox import CTkMessagebox
 from CTkScrollableDropdown import CTkScrollableDropdown
 from collections import defaultdict
+import sys
+import os
 
 
 def callback(sv, combobox):
@@ -128,6 +130,15 @@ def switch_event():
         drop.configure(values=suggestion_map[box] if suggestion_on else [])
 
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # remembers previously used comments for each task
@@ -141,7 +152,7 @@ if __name__ == '__main__':
     name = ctk.CTkEntry(app, placeholder_text="File Name")
     name.pack()
 
-    image = ctk.CTkImage(light_image=Image.open("Assets/reset.png"), dark_image=Image.open("Assets/reset.png"), size=(15, 15))
+    image = ctk.CTkImage(light_image=Image.open(resource_path("Assets/reset.png")), dark_image=Image.open(resource_path("Assets/reset.png")), size=(15, 15))
     reset_button = ctk.CTkButton(app, image=image, text="", width=20, height=30, command=reset)
     reset_button.place(x=0, y=0)
 
