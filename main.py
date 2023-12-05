@@ -78,7 +78,7 @@ def generate():
                 max_points = child.winfo_children()[2].get()
                 total_points += int(max_points)
                 curr_points = child.winfo_children()[0].get()
-                acquired_points += int(curr_points)
+                acquired_points += float(curr_points)
                 comment = child.winfo_children()[3].get()
 
                 # save suggestion
