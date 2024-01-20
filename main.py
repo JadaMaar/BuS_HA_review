@@ -70,7 +70,7 @@ def set_max():
 
 def generate():
     try:
-        with open(f"{name.get()}.txt", "w") as f:
+        with open(f"{save_path}/{name.get()}.txt", "w") as f:
             total_points = 0
             acquired_points = 0
             for child in container.winfo_children():
@@ -133,6 +133,13 @@ def switch_event():
         drop.configure(values=suggestion_map[box] if suggestion_on else [])
 
 
+def set_save_path():
+    global save_path
+    directory = filedialog.askdirectory()
+    save_path = directory
+    print(directory)
+
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -149,6 +156,8 @@ if __name__ == '__main__':
     suggestion_map = defaultdict(set)
     box_to_dropdown = dict()
 
+    save_path = "."
+
     app = ctk.CTk()
 
     point_map = {}
@@ -158,6 +167,9 @@ if __name__ == '__main__':
     image = ctk.CTkImage(light_image=Image.open(resource_path("Assets/reset.png")), dark_image=Image.open(resource_path("Assets/reset.png")), size=(15, 15))
     reset_button = ctk.CTkButton(app, image=image, text="", width=20, height=30, command=reset)
     reset_button.place(x=0, y=0)
+
+    save_path_button = ctk.CTkButton(app, text="set path", command=set_save_path, width=100)
+    save_path_button.place(x=400, y=0)
 
     max_points_button = ctk.CTkButton(app, text="MAX", width=20, command=set_max)
     max_points_button.place(x=0, y=35)
