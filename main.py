@@ -2,10 +2,14 @@ import customtkinter as ctk
 from tkinter import filedialog
 from PIL import Image
 from CTkMessagebox import CTkMessagebox
+from kraken.lib.sl import width
+from tornado.gen import multi
+
 from CTkScrollableDropdown import CTkScrollableDropdown
 from collections import defaultdict
 import sys
 import os
+from customtkinter import TOP, NE, NW
 
 
 def callback(sv, combobox):
@@ -16,30 +20,59 @@ def callback(sv, combobox):
         combobox.configure(values=[])
 
 
-def add(task_name="", max_point_value=""):
+def add(task_name="", mult="1"):
     frame = ctk.CTkFrame(container)
-    frame.pack(pady=3)
-    points = ctk.CTkComboBox(frame, values=[], width=70)
-    points.set("")
+    frame.pack(pady=3, fill="both", expand=True)
+    points = ctk.CTkComboBox(frame, values=["1", "2", "3"], width=70)
+    points.set(mult)
 
-    sv = ctk.StringVar()
-    sv.trace("w", lambda name, index, mode, sv=sv: callback(sv, points))
+    #sv = ctk.StringVar()
+    #sv.trace("w", lambda name, index, mode, sv=sv: callback(sv, points))
 
     task = ctk.CTkEntry(frame, placeholder_text="task", width=50)
     task.insert(0, task_name)
     task.pack(side="left", padx=5)
 
-    max_points = ctk.CTkEntry(frame, textvariable=sv, width=30)
-    max_points.insert(0, max_point_value)
+    # max_points = ctk.CTkEntry(frame, textvariable=sv, width=30)
+    max_points = ctk.CTkEntry(frame, width=30)
+    # max_points.insert(0, max_point_value)
     max_points.pack(side="left", padx=5)
 
     points.pack(side="left", padx=5)
 
-    comment = ctk.CTkEntry(frame, width=400, placeholder_text="comment")
-    comment.pack(side="left", padx=5)
+    star = ctk.CTkCheckBox(frame, text="⭐", width=50)
+    star.pack(side="left", padx=5)
+
+    comment_frame = ctk.CTkFrame(frame)
+    comment_frame.pack(pady=3, fill="both", expand=True)
+
+    sub_frame = ctk.CTkFrame(comment_frame)
+    sub_frame.pack(pady=3, fill="both", expand=True)
+
+    comment = ctk.CTkEntry(sub_frame, width=400, placeholder_text="comment")
+    comment.pack(side="left", padx=5, fill="both", expand=True)
+
+    add_btn = ctk.CTkButton(sub_frame, text="+", command= lambda: sub_add(comment_frame), width=30)
+    add_btn.pack(side="left", padx=5)
 
     drop = CTkScrollableDropdown(comment, values=[], command=lambda e: fill_text(e, comment), autocomplete=True)
     box_to_dropdown[comment] = drop
+
+
+def sub_add(comment_container):
+    sub_frame = ctk.CTkFrame(comment_container)
+    sub_frame.pack(pady=3, fill="both", expand=True)
+    comment = ctk.CTkEntry(sub_frame, width=400, placeholder_text="comment")
+    comment.pack(side="left", padx=5, fill="both", expand=True)
+
+    index = len(comment_container.winfo_children()) - 1
+    add_btn = ctk.CTkButton(sub_frame, text="-", command=lambda: sub_remove(comment_container, index), width=30)
+    add_btn.pack(side="left", padx=5)
+
+
+def sub_remove(comment_container, index):
+    print(index)
+    comment_container.winfo_children()[index].destroy()
 
 
 def fill_text(text, text_field):
@@ -55,17 +88,20 @@ def remove():
 def reset():
     name.delete(0, 'end')
     for child in container.winfo_children():
-        curr_points = child.winfo_children()[0]
-        curr_points.set('')
-        comment = child.winfo_children()[3]
+        for comment in child.winfo_children()[4].winfo_children()[1:]:
+            comment.destroy()
+        points = child.winfo_children()[2]
+        points.delete(0, 'end')
+        comment = child.winfo_children()[4].winfo_children()[0].winfo_children()[0]
         comment.delete(0, 'end')
 
 
 def set_max():
     for child in container.winfo_children():
-        max_points = child.winfo_children()[2].get()
-        curr_points = child.winfo_children()[0]
-        curr_points.set(max_points)
+        points = child.winfo_children()[2]
+        points.insert(0, "1")
+        star = child.winfo_children()[3]
+        star.select()
 
 
 def generate():
@@ -73,28 +109,42 @@ def generate():
         with open(f"{save_path}/{name.get()}.txt", "w") as f:
             total_points = 0
             acquired_points = 0
+            acquired_stars = 0
             for child in container.winfo_children():
                 task = child.winfo_children()[1].get()
-                max_points = child.winfo_children()[2].get()
-                total_points += int(max_points)
-                curr_points = child.winfo_children()[0].get()
-                acquired_points += float(curr_points)
-                comment = child.winfo_children()[3].get()
+                points = child.winfo_children()[2].get()
+                point_mult = int(child.winfo_children()[0].get())
 
-                # save suggestion
-                if comment:
-                    comment_entry = child.winfo_children()[3]
-                    suggestion_map[comment_entry].add(comment)
-                    if suggestion_on:
-                        box_to_dropdown[comment_entry].configure(values=suggestion_map[comment_entry])
+                total_points += point_mult
 
-                if comment != "":
-                    f.write(f"{task}) {curr_points}/{max_points}: {comment}\n")
-                else:
-                    f.write(f"{task}) {curr_points}/{max_points}\n")
-            f.write(f"Total: {acquired_points}/{total_points}")
-    except:
+                acquired_points += float(int(points) * int(point_mult))
+                star = "*" if child.winfo_children()[3].get() else ""
+                acquired_stars += float(int(points) * int(point_mult)) if star == "*" else 0
+
+                comments = child.winfo_children()[4]
+                weighting = f"({point_mult}x Gewichtung)" if point_mult > 1 else ""
+                f.write(f"{task}) {points}{star}/1 {weighting}\n")
+                for comment_frame in comments.winfo_children():
+                    comment_entry = comment_frame.winfo_children()[0]
+                    comment = comment_entry.get()
+                    if comment != "":
+                        f.write(f"- {comment}\n")
+                    # save suggestion
+                    # if comment:
+                    #     comment_entry = child.winfo_children()[3]
+                    #     suggestion_map[comment_entry].add(comment)
+                    #     if suggestion_on:
+                    #         box_to_dropdown[comment_entry].configure(values=suggestion_map[comment_entry])
+#
+                    # if comment != "":
+                    #     f.write(f"{task}) {curr_points}/{max_points}: {comment}\n")
+                    # else:
+                    #     f.write(f"{task}) {curr_points}/{max_points}\n")
+            f.write(f"Total: {int(acquired_points)}/{total_points}\n")
+            f.write(f"Total *: {int(acquired_stars)}*/{total_points}*")
+    except Exception as e:
         print("generation failed")
+        print(e)
         CTkMessagebox(message="Something went wrong please try again.", title="Error", icon="cancel")
 
 
@@ -104,8 +154,8 @@ def save_task():
         return
     for child in container.winfo_children():
         task = child.winfo_children()[1].get()
-        max_points = child.winfo_children()[2].get()
-        f.write(f"{task}|{max_points}\n")
+        point_mult = int(child.winfo_children()[0].get())
+        f.write(f"{task}|{point_mult}\n")
     f.close()
 
 
@@ -123,14 +173,14 @@ def load_task():
         file = f.readlines()
         for line in file:
             line = line.strip("\n")
-            task, max_point = line.split("|")
-            add(task, max_point)
+            task, point_mult = line.split("|")
+            add(task, point_mult)
 
 
-def switch_event():
-    suggestion_on = comment_prompt_toggle.get()
-    for box, drop in box_to_dropdown.items():
-        drop.configure(values=suggestion_map[box] if suggestion_on else [])
+# def switch_event():
+#     suggestion_on = comment_prompt_toggle.get()
+#     for box, drop in box_to_dropdown.items():
+#         drop.configure(values=suggestion_map[box] if suggestion_on else [])
 
 
 def set_save_path():
@@ -159,37 +209,46 @@ if __name__ == '__main__':
     save_path = "."
 
     app = ctk.CTk()
+    app.geometry("800x600")
 
     point_map = {}
     name = ctk.CTkEntry(app, placeholder_text="File Name")
-    name.pack()
+    name.pack(pady=10)
 
+    # Reset Button
     image = ctk.CTkImage(light_image=Image.open(resource_path("Assets/reset.png")), dark_image=Image.open(resource_path("Assets/reset.png")), size=(15, 15))
     reset_button = ctk.CTkButton(app, image=image, text="", width=20, height=30, command=reset)
-    reset_button.place(x=0, y=0)
+    reset_button.pack(side = TOP, anchor = NW, pady=5, padx=5)# .place(x=0, y=0)
 
+    # Path Button
     save_path_button = ctk.CTkButton(app, text="set path", command=set_save_path, width=100)
-    save_path_button.place(x=400, y=0)
+    save_path_button.pack(side = TOP, anchor = NE, pady=5, padx=5)#.place(x=400, y=0)
 
+    # Max PointsButton
     max_points_button = ctk.CTkButton(app, text="MAX", width=20, command=set_max)
-    max_points_button.place(x=0, y=35)
+    max_points_button.pack(side = TOP, anchor = NW, pady=5, padx=5)#.place(x=0, y=35)
 
-    suggestion_on = True
-    comment_prompt_toggle = ctk.CTkSwitch(app, text="Use comment suggestion", command=switch_event)
-    comment_prompt_toggle.select()
-    comment_prompt_toggle.place(x=0, y=70)
+    # Suggestions Toggle
+    # suggestion_on = True
+    # comment_prompt_toggle = ctk.CTkSwitch(app, text="Use comment suggestion", command=switch_event)
+    # comment_prompt_toggle.select()
+    # comment_prompt_toggle.pack(side = TOP, anchor = NW, pady=5, padx=5)# .place(x=0, y=70)
 
+    # Add Button
     add_button = ctk.CTkButton(app, text="Add", command=add)
     add_button.pack(pady=5)
     remove_button = ctk.CTkButton(app, text="Remove Last", command=remove)
     remove_button.pack(pady=5)
 
+    # Container
     container = ctk.CTkScrollableFrame(app, width=500)
-    container.pack()
+    container.pack(fill="both", expand=True)
 
+    # Generate Button
     generate = ctk.CTkButton(app, text="Generate", command=generate)
     generate.pack(pady=5)
 
+    # Save/Load Buttons
     setting_frame = ctk.CTkFrame(app)
     setting_frame.pack(pady=5)
     save = ctk.CTkButton(setting_frame, text="save", command=save_task)
