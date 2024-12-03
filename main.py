@@ -2,8 +2,6 @@ import customtkinter as ctk
 from tkinter import filedialog
 from PIL import Image
 from CTkMessagebox import CTkMessagebox
-from kraken.lib.sl import width
-from tornado.gen import multi
 
 from CTkScrollableDropdown import CTkScrollableDropdown
 from collections import defaultdict
@@ -99,6 +97,7 @@ def reset():
 def set_max():
     for child in container.winfo_children():
         points = child.winfo_children()[2]
+        points.delete(0, 'end')
         points.insert(0, "1")
         star = child.winfo_children()[3]
         star.select()
@@ -113,13 +112,13 @@ def generate():
             for child in container.winfo_children():
                 task = child.winfo_children()[1].get()
                 points = child.winfo_children()[2].get()
-                point_mult = int(child.winfo_children()[0].get())
+                point_mult = float(child.winfo_children()[0].get())
 
                 total_points += point_mult
 
-                acquired_points += float(int(points) * int(point_mult))
+                acquired_points += int(points) * point_mult
                 star = "*" if child.winfo_children()[3].get() else ""
-                acquired_stars += float(int(points) * int(point_mult)) if star == "*" else 0
+                acquired_stars += int(points) * point_mult if star == "*" else 0
 
                 comments = child.winfo_children()[4]
                 weighting = f"({point_mult}x Gewichtung)" if point_mult > 1 else ""
